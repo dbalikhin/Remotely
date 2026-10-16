@@ -1,6 +1,6 @@
 param([switch]$Restore)
 $ErrorActionPreference = 'Stop'
-$repoName = ($env:GITHUB_REPOSITORY -split '/')[1]
+$repoName = (($env:SONAR_TARGET_REPOSITORY ?? $env:GITHUB_REPOSITORY) -split '/')[1]
 $solution = $env:SONAR_SOLUTION
 if ($repoName -eq 'Remotely') {
     # Docker Compose is not a C# project. Include every valid C# project, plus
@@ -24,12 +24,6 @@ if ($Restore) {
         npm.cmd ci --prefix LANCommander.Server
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
-    if ($repoName -eq 'Remotely') {
-        dotnet restore Desktop.Core/Desktop.Core.csproj -p:TargetFramework=net8.0
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-        dotnet restore Tests/Desktop.Win.Tests/Desktop.Win.Tests.csproj -p:TargetFramework=net8.0-windows
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    }
     exit 0
 }
 $timer = [Diagnostics.Stopwatch]::StartNew()
@@ -38,10 +32,11 @@ $common = @('--no-restore', '--no-incremental', '--disable-build-servers', '--co
 dotnet build $solution @common 2>&1 | Tee-Object sonar-artifacts/compiled/build.log
 $scanExit = $LASTEXITCODE
 if ($repoName -eq 'Remotely' -and $scanExit -eq 0) {
-    dotnet build Desktop.Core/Desktop.Core.csproj @common -p:TargetFramework=net8.0 2>&1 | Tee-Object -Append sonar-artifacts/compiled/build.log
+    $extraCommon = @($common | Where-Object { $_ -ne '--no-restore' })
+    dotnet build Desktop.Core/Desktop.Core.csproj @extraCommon -p:TargetFramework=net8.0 2>&1 | Tee-Object -Append sonar-artifacts/compiled/build.log
     $scanExit = $LASTEXITCODE
     if ($scanExit -eq 0) {
-        dotnet build Tests/Desktop.Win.Tests/Desktop.Win.Tests.csproj @common -p:TargetFramework=net8.0-windows 2>&1 | Tee-Object -Append sonar-artifacts/compiled/build.log
+        dotnet build Tests/Desktop.Win.Tests/Desktop.Win.Tests.csproj @extraCommon -p:TargetFramework=net8.0-windows 2>&1 | Tee-Object -Append sonar-artifacts/compiled/build.log
         $scanExit = $LASTEXITCODE
     }
 }
