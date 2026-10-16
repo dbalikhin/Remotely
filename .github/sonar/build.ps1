@@ -28,7 +28,7 @@ if ($Restore) {
 }
 $timer = [Diagnostics.Stopwatch]::StartNew()
 $scanExit = 0
-$common = @('--no-restore', '--no-incremental', '--disable-build-servers', '--configuration', 'Release', '-m:2', '-p:UseSharedCompilation=false', '-v:minimal')
+$common = @('--no-restore', '--no-incremental', '--disable-build-servers', '--configuration', 'Release', '-m:2', '-p:UseSharedCompilation=false', '-p:LibraryRestore=false', '-p:TypeScriptCompileBlocked=true', '-v:minimal')
 dotnet build $solution @common 2>&1 | Tee-Object sonar-artifacts/compiled/build.log
 $scanExit = $LASTEXITCODE
 if ($repoName -eq 'Remotely' -and $scanExit -eq 0) {
