@@ -31,14 +31,14 @@ $scanExit = 0
 $common = @('--no-restore', '--no-incremental', '--disable-build-servers', '--configuration', 'Release', '-m:2', '-p:UseSharedCompilation=false', '-p:LibraryRestore=false', '-p:TypeScriptCompileBlocked=true', '-v:minimal')
 dotnet build $solution @common 2>&1 | Tee-Object sonar-artifacts/compiled/build.log
 $scanExit = $LASTEXITCODE
+$failedProjects = @()
+if ($scanExit -ne 0) { $failedProjects += $solution }
 if ($repoName -eq 'Remotely' -and $scanExit -eq 0) {
     $extraCommon = @($common | Where-Object { $_ -ne '--no-restore' })
-    dotnet build Desktop.Core/Desktop.Core.csproj @extraCommon -p:TargetFramework=net8.0 2>&1 | Tee-Object -Append sonar-artifacts/compiled/build.log
-    $scanExit = $LASTEXITCODE
-    if ($scanExit -eq 0) {
-        dotnet build Tests/Desktop.Win.Tests/Desktop.Win.Tests.csproj @extraCommon -p:TargetFramework=net8.0-windows 2>&1 | Tee-Object -Append sonar-artifacts/compiled/build.log
-        $scanExit = $LASTEXITCODE
-    }
+    dotnet build Desktop.Core/Desktop.Core.csproj @extraCommon -p:TargetFramework=net8.0 -p:TargetFrameworks=net8.0 2>&1 | Tee-Object -Append sonar-artifacts/compiled/build.log
+    if ($LASTEXITCODE -ne 0) { $failedProjects += 'Desktop.Core/Desktop.Core.csproj'; $scanExit = 1 }
+    dotnet build Tests/Desktop.Win.Tests/Desktop.Win.Tests.csproj @extraCommon -p:TargetFramework=net8.0-windows -p:TargetFrameworks=net8.0-windows 2>&1 | Tee-Object -Append sonar-artifacts/compiled/build.log
+    if ($LASTEXITCODE -ne 0) { $failedProjects += 'Tests/Desktop.Win.Tests/Desktop.Win.Tests.csproj'; $scanExit = 1 }
 }
-@{ build_with_analysis_seconds = $timer.Elapsed.TotalSeconds; build_exit_code = $scanExit } | ConvertTo-Json | Set-Content sonar-artifacts/compiled/timing-build.json
+@{ build_with_analysis_seconds = $timer.Elapsed.TotalSeconds; build_exit_code = $scanExit; failed_projects = $failedProjects } | ConvertTo-Json | Set-Content sonar-artifacts/compiled/timing-build.json
 exit $scanExit

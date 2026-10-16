@@ -167,6 +167,8 @@ def export(processing, commit, timings):
         "security_issues_by_rule": dict(collections.Counter(item["rule"] for item in issues)), "timings": timings,
         "active_security_rules": json.loads((OUTPUT / "security-rule-manifest.json").read_text())["rule_count"],
         "coverage_status": "C# analyzed" if count else "No C# measured; incomplete C# coverage", "tp_fp_reviewed": False}
+    if timings.get("build_exit_code", 0) != 0:
+        summary["coverage_status"] = "Partial C# coverage; failed projects listed in timings"
     save("summary.json", summary)
     text = "## Sonar C# security — " + summary["mode"] + "\n\n```json\n" + json.dumps(summary, indent=2) + "\n```\n"
     (OUTPUT / "summary.md").write_text(text, encoding="utf-8")
